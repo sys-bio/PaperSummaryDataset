@@ -8,6 +8,8 @@ class SummaryValidator(llm_caller_base.LLMCallerBase):
 
     def validate(self, summary, paper_file):
         # todo implement the validation process and assign the result to is_valid
+        # In this class you can make a call like this:
+        # response = self.response_generator.generate(prompt) to pass a prompt to the llm model and get the response
         is_valid = False
         if is_valid:
             return True
