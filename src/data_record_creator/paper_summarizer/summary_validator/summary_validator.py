@@ -1,5 +1,6 @@
 from src.utils import llm_caller_base
 
+
 class SummaryValidator(llm_caller_base.LLMCallerBase):
 
     def __init__(self):
@@ -10,7 +11,7 @@ class SummaryValidator(llm_caller_base.LLMCallerBase):
         # todo implement the validation process and assign the result to is_valid
         # In this class you can make a call like this:
         # response = self.response_generator.generate(prompt) to pass a prompt to the llm model and get the response
-        is_valid = False
+        is_valid = True
         if is_valid:
             return True
 

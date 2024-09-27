@@ -1,6 +1,7 @@
 from src.data_record_creator.paper_summarizer.summary_generator import summary_generator
 from src.data_record_creator.paper_summarizer.summary_validator import summary_validator
 
+
 class PaperSummarizer:
 
     def __init__(self):
