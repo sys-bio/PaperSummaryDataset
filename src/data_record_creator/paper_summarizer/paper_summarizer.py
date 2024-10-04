@@ -14,7 +14,8 @@ class PaperSummarizer:
 
     def _get_paper_summary(self, paper_file, feedback=""):
         summary = self.summarizer.generate(paper_file, feedback)
-        if self.summary_validator.validate(summary, paper_file):
+        paper_sections = self.summarizer.get_paper_sections()
+        if self.summary_validator.validate(summary, paper_sections):
             return summary
         else:
             self.max_num_of_tries += 1
