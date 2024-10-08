@@ -17,13 +17,12 @@ class SummaryGenerator(llm_caller_base.LLMCallerBase):
 
     @staticmethod
     def _extract_paper_sections(paper_file):
-        # todo extract the sections of the paper and assign them to the _paper_sections attribute.
-        #  We want a dictionary with the following keys (you can use the titles you are using,
-        #  so these are just examples): title, authors, summary, background_significance,
-        #  methods, results, discussion, references
+        for pdf in self.paper_files:
+            pdf_path = os.path.join(
         paper_sections = {'title': 'title', 'authors': 'authors', 'summary': 'summary',
                           'background_significance': 'background_significance', 'methods': 'methods',
                           'results': 'results', 'discussion': 'discussion', 'references': 'references'}
+        
         return paper_sections
 
     def _get_paper_summary(self, feedback=""):
