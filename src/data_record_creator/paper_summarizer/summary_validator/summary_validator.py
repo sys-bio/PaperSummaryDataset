@@ -12,6 +12,8 @@ class SummaryValidator(llm_caller_base.LLMCallerBase):
 
     def validate(self, summary, paper_sections):
         # todo implement the validation process and assign the result to is_valid
+        # paper sections is a dictionary with the following keys: title, authors, summary, background_significance,
+        # methods, results, discussion, references that contains the original sections of the paper
         # In this class you can make a call like this:
         # response = self.response_generator.generate(prompt) to pass a prompt to the llm model and get the response
         organized_sections = paper_sections
