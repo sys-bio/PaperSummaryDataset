@@ -1,3 +1,5 @@
+import os
+
 from src.utils import llm_caller_base
 
 
@@ -16,7 +18,7 @@ class SummaryGenerator(llm_caller_base.LLMCallerBase):
         return self._paper_sections
 
     @staticmethod
-    def _extract_paper_sections(paper_file):
+    def _extract_paper_sections(self, paper_file):
         for pdf in self.paper_files:
             pdf_path = os.path.join("test/models/model", pdf)
             pdf_document = fitz.open(pdf_path)
@@ -43,7 +45,7 @@ class SummaryGenerator(llm_caller_base.LLMCallerBase):
                     if current_section or line.strip():
                         current_section.append(line)
                 with open(file_path, 'r', encoding='utf-8') as file:
-            lines_list = file.readlines()
+                    lines_list = file.readlines()
 
             for section in sections:
                 lines = section.splitlines()
@@ -231,7 +233,7 @@ class SummaryGenerator(llm_caller_base.LLMCallerBase):
                 # response = self.response_generator.generate(prompt) to pass a prompt to the llm model and get the response
                 final_path = os.path.join("test/models/model", f"llm_output.txt")
 
-                with open(final_path, "w" as file:
+                with open(final_path, "w") as file:
                     file.write(paper_summary)
                 return paper_summary
 
