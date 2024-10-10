@@ -22,7 +22,7 @@ class SummaryGenerator(llm_caller_base.LLMCallerBase):
             pdf_document = fitz.open(pdf_path)
             filename = os.path.basename(pdf_path)
             base_filename = os.path.splitext(filename)[0]
-            outname_md = os.path.join("test/models/model", f"{base_filename}.md")
+            outname_md = os.path.join("test/models/model", f"{base_filename}.md") #create temp directory for this 
             md_text = pymupdf4llm.to_markdown(pdf_path)
             pathlib.Path(outname_md).write_bytes(md_text.encode())
             pathlib.Path(outname_txt).write_bytes(md_text.encode())
@@ -142,97 +142,97 @@ class SummaryGenerator(llm_caller_base.LLMCallerBase):
             
             paper_summary = "## This is the summary of " + self._paper_sections['title'] + " paper \n\n"
             
-            def _get_paper_summary(self, feedback=""):
-                paper_summary = "## This is the summary of " + self._paper_sections['title'] + " paper \n\n"
-                title_prompt = f"Context:{title1}" + self.get_title_prompt() #basically goes through the class, grabs function, and carries out the function)
-                author_prompt = f"Context{author}" + self.get_author_prompt()
-                summary_prompt = f"Context:{summary}" + self.get_summary_prompt()
-                background_significance_prompt = f"Context:{background_significance}" + self.get_background_significance_prompt()
-                methods_prompt = f"Context:{methods}" + self.get_methods_prompt()
-                results_prompt = f"Context:{results}" + self.get_results_prompt()
-                discussion_prompt = f"Context:{discussion}" + self.get_discussion_prompt()
-                references_prompt = f"Context:{references}" + self.get_references_prompt()
+    def _get_paper_summary(self, feedback=""):
+        paper_summary = "## This is the summary of " + self._paper_sections['title'] + " paper \n\n"
+        title_prompt = f"Context:{title1}" + self.get_title_prompt() #basically goes through the class, grabs function, and carries out the function)
+        author_prompt = f"Context{author}" + self.get_author_prompt()
+        summary_prompt = f"Context:{summary}" + self.get_summary_prompt()
+        background_significance_prompt = f"Context:{background_significance}" + self.get_background_significance_prompt()
+        methods_prompt = f"Context:{methods}" + self.get_methods_prompt()
+        results_prompt = f"Context:{results}" + self.get_results_prompt()
+        discussion_prompt = f"Context:{discussion}" + self.get_discussion_prompt()
+        references_prompt = f"Context:{references}" + self.get_references_prompt()
 
-                def get_title_prompt(self):
-                    return "Set the title for the section as '#Title' Directly state the title of the paper. Disregard all other text."
-                def get_author_prompt(self):
-                    return "Set the title for the section as '#Authors' State the names of the authors with their affiliations ONLY. Disregard all other information."
-                def get_summary_prompt(self):
-                    return """Set the title for the section as '#Summary'. 
-                            
-                            __
-                            You are a summarizing AI tasked with summarizing key sections of a research paper. Please summarize the abstract, introduction, and conclusion into a single concise paragraph. 
-                            Focus on capturing the main objectives, methods, key findings, and conclusions from the abstract; the background, research question, and significance from the introduction;
-                            and the key results, implications, and future directions from the conclusion. 
-                            Ensure the summary is clear, specific, and informative without including unnecessary details.
-                            __
-                            
-                            Do not output anything you do not know for certain."""
-                def get_background_significance_prompt(self):
-                    return """Set the title for the section as '#Background and Significance'
-                            
-                            __
-                            You are a summarizing AI. Please summarize the provided introduction focusing on the background and significance of the study. 
-                            Highlight the context, the research problem, key literature, and the importance of the study. Ensure the summary captures the rationale behind the research
-                            and its potential impact or contribution to the field, presented as a clean and concise background and significance section.
-                            __
-                            
-                            Do not output anything you do not know for certain."""
-                def get_methods_prompt(self):
-                    return """Set the title for the section as '#Methods'
-                            
-                            __
-                            You are a summarizing AI. Please summarize the methods section (the provided section), focusing on the experimental design, procedures, materials, and techniques used in the study. 
-                            Ensure the summary captures the key steps, methodologies, and any relevant parameters or controls, presented as a clear and concise methods section.
-                            Output everything in a bulletpoint format.
-                            __
-                            
-                            Do not output anything you do not know for certain."""
-                def get_results_prompt(self):
-                    return """"Set the title for the section as '#Results'
-                            
-                            __
-                            You are a summarizing AI. Please summarize the above results section from a research paper. Focus on the key findings, data trends, and any significant outcomes.
-                            Ensure that the summary is concise and accurately reflects the main results and their implications.
-                            Output the key results in a bulletpoint format.
-                            __
-                            
-                            Do not output anything you do not know for certain."""
-                def get_discussion_prompt(self):
-                    return """Set the title for the section as '#Discussion'
-                            __
-                            You are a summarizing AI. Please summarize the above discussion section of a research paper. Highlight the key interpretations, implications, and 
-                            any connections made to the broader research context. Ensure the summary is concise and captures the essence of the authors' conclusions.
-                            __
-                            
-                            Do not output anything you do not know for certain.
-                            """
-                def get_references_prompt(self):
-                    return """Set the title for the section as '#References'
-                                
-                            __
-                            Iterate through every reference provided. 
-                            Only include the name of each paper. 
-                            __
-                            
-                            Do not output anything you do not know for certain."""
-                title_response = self.response_generator.generate(title_prompt)
-                author_response = self.response_generator.generate(author_prompt)
-                summary_response = self.response_generator.generate(summary_prompt)
-                background_significance_response = self.response_generator.generate(background_significance_prompt)
-                methods_response = self.response_generator.generate(methods_prompt)
-                results_response = self.response_generator.generate(results_prompt)
-                discussion_response = self.response_generator.generate(discussion_prompt)
-                references_response = self.response_generator.generate(references_prompt)
-
-                paper_summary = "## This is the summary of " + self._paper_sections['title'] + " paper \n\n" + "\n\n\n" + title_response + "\n\n\n" + author_response + "\n\n\n" + summary_response + "\n\n\n" + background_significance_response + "\n\n\n" + methods_response + "\n\n\n" + results_response + "\n\n\n" + discussion_response + "\n\n\n" + references_response 
-                #  Make use of the last round feedback if available
-                # In this class you can make a call like this:
-                # response = self.response_generator.generate(prompt) to pass a prompt to the llm model and get the response
-                final_path = os.path.join("test/models/model", f"llm_output.txt")
-
-                with open(final_path, "w" as file:
-                    file.write(paper_summary)
-                return paper_summary
-
+    def get_title_prompt(self):
+        return "Set the title for the section as '#Title' Directly state the title of the paper. Disregard all other text."
+    def get_author_prompt(self):
+        return "Set the title for the section as '#Authors' State the names of the authors with their affiliations ONLY. Disregard all other information."
+    def get_summary_prompt(self):
+        return """Set the title for the section as '#Summary'. 
                 
+                __
+                You are a summarizing AI tasked with summarizing key sections of a research paper. Please summarize the abstract, introduction, and conclusion into a single concise paragraph. 
+                Focus on capturing the main objectives, methods, key findings, and conclusions from the abstract; the background, research question, and significance from the introduction;
+                and the key results, implications, and future directions from the conclusion. 
+                Ensure the summary is clear, specific, and informative without including unnecessary details.
+                __
+                
+                Do not output anything you do not know for certain."""
+    def get_background_significance_prompt(self):
+        return """Set the title for the section as '#Background and Significance'
+                
+                __
+                You are a summarizing AI. Please summarize the provided introduction focusing on the background and significance of the study. 
+                Highlight the context, the research problem, key literature, and the importance of the study. Ensure the summary captures the rationale behind the research
+                and its potential impact or contribution to the field, presented as a clean and concise background and significance section.
+                __
+                
+                Do not output anything you do not know for certain."""
+    def get_methods_prompt(self):
+        return """Set the title for the section as '#Methods'
+                
+                __
+                You are a summarizing AI. Please summarize the methods section (the provided section), focusing on the experimental design, procedures, materials, and techniques used in the study. 
+                Ensure the summary captures the key steps, methodologies, and any relevant parameters or controls, presented as a clear and concise methods section.
+                Output everything in a bulletpoint format.
+                __
+                
+                Do not output anything you do not know for certain."""
+    def get_results_prompt(self):
+        return """"Set the title for the section as '#Results'
+                
+                __
+                You are a summarizing AI. Please summarize the above results section from a research paper. Focus on the key findings, data trends, and any significant outcomes.
+                Ensure that the summary is concise and accurately reflects the main results and their implications.
+                Output the key results in a bulletpoint format.
+                __
+                
+                Do not output anything you do not know for certain."""
+    def get_discussion_prompt(self):
+        return """Set the title for the section as '#Discussion'
+                __
+                You are a summarizing AI. Please summarize the above discussion section of a research paper. Highlight the key interpretations, implications, and 
+                any connections made to the broader research context. Ensure the summary is concise and captures the essence of the authors' conclusions.
+                __
+                
+                Do not output anything you do not know for certain.
+                """
+    def get_references_prompt(self):
+        return """Set the title for the section as '#References'
+                    
+                __
+                Iterate through every reference provided. 
+                Only include the name of each paper. 
+                __
+                
+                Do not output anything you do not know for certain."""
+    title_response = self.response_generator.generate(title_prompt)
+    author_response = self.response_generator.generate(author_prompt)
+    summary_response = self.response_generator.generate(summary_prompt)
+    background_significance_response = self.response_generator.generate(background_significance_prompt)
+    methods_response = self.response_generator.generate(methods_prompt)
+    results_response = self.response_generator.generate(results_prompt)
+    discussion_response = self.response_generator.generate(discussion_prompt)
+    references_response = self.response_generator.generate(references_prompt)
+
+    paper_summary = "## This is the summary of " + self._paper_sections['title'] + " paper \n\n" + "\n\n\n" + title_response + "\n\n\n" + author_response + "\n\n\n" + summary_response + "\n\n\n" + background_significance_response + "\n\n\n" + methods_response + "\n\n\n" + results_response + "\n\n\n" + discussion_response + "\n\n\n" + references_response 
+    #  Make use of the last round feedback if available
+    # In this class you can make a call like this:
+    # response = self.response_generator.generate(prompt) to pass a prompt to the llm model and get the response
+    final_path = os.path.join("test/models/model", f"llm_output.txt")
+
+    with open(final_path, "w" as file:
+        file.write(paper_summary)
+    return paper_summary
+
+            
