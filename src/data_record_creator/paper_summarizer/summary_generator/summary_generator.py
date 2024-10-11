@@ -17,130 +17,129 @@ class SummaryGenerator(llm_caller_base.LLMCallerBase):
 
     @staticmethod
     def _extract_paper_sections(paper_file):
-        for pdf in self.paper_files:
-            pdf_path = os.path.join("test/models/model", pdf)
-            pdf_document = fitz.open(pdf_path)
-            filename = os.path.basename(pdf_path)
-            base_filename = os.path.splitext(filename)[0]
-            outname_md = os.path.join("test/models/model", f"{base_filename}.md") #create temp directory for this 
-            md_text = pymupdf4llm.to_markdown(pdf_path)
-            pathlib.Path(outname_md).write_bytes(md_text.encode())
-            pathlib.Path(outname_txt).write_bytes(md_text.encode())
+        pdf_path = os.path.join("test/models/model", pdf)
+        LOCAL_DOWNLOAD_DIR = tempfile.mkdtemp()
+        os.makedirs(LOCAL_DOWNLOAD_DIR, exist_ok=True)
+        pdf_document = fitz.open(pdf_path)
+        outname_md = os.path.join(LOCAL_DOWNLOAD_DIR, f"pre_file.md") #create temp directory for this 
+        md_text = pymupdf4llm.to_markdown(pdf_path)
+        pathlib.Path(outname_md).write_bytes(md_text.encode())
+        pathlib.Path(outname_txt).write_bytes(md_text.encode())
 
-            with open(file_path, 'r', encoding='utf-8') as file:
-                content = file.read()
-    
-            sections = []
-            current_section = []
-    
-            for line in content.splitlines():
-                if line.startswith(('**', '##', '#')):
-                    if current_section:
-                        sections.append('\n'.join(current_section))
-                        current_section = []
+        with open(file_path, 'r', encoding='utf-8') as file: #only save the md file
+            content = file.read()
+
+        sections = []
+        current_section = []
+
+        for line in content.splitlines():
+            if line.startswith(('**', '##', '#')):
+                if current_section:
+                    sections.append('\n'.join(current_section))
+                    current_section = []
+                current_section.append(line)
+            else:
+                if current_section or line.strip():
                     current_section.append(line)
-                else:
-                    if current_section or line.strip():
-                        current_section.append(line)
-                with open(file_path, 'r', encoding='utf-8') as file:
-            lines_list = file.readlines()
+            with open(file_path, 'r', encoding='utf-8') as file:
+        lines_list = file.readlines()
 
-            for section in sections:
-                lines = section.splitlines()
-                title2 = lines[:6]
-                title = '\n'.join(title2)
-                for category in self.categories:
-                    if category in title.lower():
-                        category_sections[category] = section
-    
-            methods2 = []
-            results2 = []
-            in_methods = False
-            in_results = False
-    
-            for line in lines_list:
-                if 'Methods' in line:
-                    in_methods = True
-                    continue  # Skip the line containing 'Methods'
-                if 'Results' in line:
-                    in_results = True
-                    in_methods = False
-                    continue  # Skip the line containing 'Results'
-                if 'Discussion' in line or 'Conclusion' in line or 'References' in line:
-                    in_results = False
-                    break  # Stop if we've reached the Discussion or Conclusion
-    
-                if in_methods:
-                    methods2.append(line)
-                elif in_results:
-                    results2.append(line)
-    
-            methods_text = ''.join(methods2).strip()
-            results_text = ''.join(results2).strip()
-    
+        for section in sections:
+            lines = section.splitlines()
+            title2 = lines[:6]
+            title = '\n'.join(title2)
+            for category in self.categories:
+                if category in title.lower():
+                    category_sections[category] = section
+
+        methods2 = []
+        results2 = []
+        in_methods = False
+        in_results = False
+
+        for line in lines_list:
+            if 'Methods' in line:
+                in_methods = True
+                continue  # Skip the line containing 'Methods'
+            if 'Results' in line:
+                in_results = True
+                in_methods = False
+                continue  # Skip the line containing 'Results'
+            if 'Discussion' in line or 'Conclusion' in line or 'References' in line:
+                in_results = False
+                break  # Stop if we've reached the Discussion or Conclusion
+
+            if in_methods:
+                methods2.append(line)
+            elif in_results:
+                results2.append(line)
+
+        methods_text = ''.join(methods2).strip()
+        results_text = ''.join(results2).strip()
+
+        if len(methods_text.strip()) == 0:
+            methods_text = category_sections.get('methods')
             if len(methods_text.strip()) == 0:
-                methods_text = category_sections.get('methods')
-                if len(methods_text.strip()) == 0:
-                    methods_text = category_sections.get('methodologies')
-                    if len (methods_text.strip()) == 0:
-                        methods_text = category_sections.get('methodology') or ''
-                        
-            if len(results_text.strip()) == 0:
-                results_text = category_sections.get('results') or ''
-                
-            if len(methods_text.strip()) == 0 and len(results_text.strip()) == 0:
-                intro_index = next((i for i, sec in enumerate(sections) if 'introduction' in sec.lower()), None)
-                results_index = next((i for i, sec in enumerate(sections) if 'results' in sec.lower()), None)
-                discussion_index = next((i for i, sec in enumerate(sections) if 'discussion' in sec.lower()), None)
+                methods_text = category_sections.get('methodologies')
+                if len (methods_text.strip()) == 0:
+                    methods_text = category_sections.get('methodology') or ''
+                    
+        if len(results_text.strip()) == 0:
+            results_text = category_sections.get('results') or ''
+            
+        if len(methods_text.strip()) == 0 and len(results_text.strip()) == 0:
+            intro_index = next((i for i, sec in enumerate(sections) if 'introduction' in sec.lower()), None)
+            results_index = next((i for i, sec in enumerate(sections) if 'results' in sec.lower()), None)
+            discussion_index = next((i for i, sec in enumerate(sections) if 'discussion' in sec.lower()), None)
+
+            # Define methods and results sections
+            if intro_index is not None:
+                if results_index is not None:
+                    methods_text = "\n".join(sections[intro_index + 1:results_index])
+                    results_text = sections[results_index]
+                elif discussion_index is not None:
+                    methods_text = "\n".join(sections[intro_index + 1:discussion_index])
+                    results_text = "\n".join(sections[results_index:discussion_index])
+                else:
+                    methods_text = "\n".join(sections[intro_index + 1:])
+
+        if len(results_text.strip()) == 0:
+            results_text = category_sections.get('results') or ''
     
-                # Define methods and results sections
-                if intro_index is not None:
-                    if results_index is not None:
-                        methods_text = "\n".join(sections[intro_index + 1:results_index])
-                        results_text = sections[results_index]
-                    elif discussion_index is not None:
-                        methods_text = "\n".join(sections[intro_index + 1:discussion_index])
-                        results_text = "\n".join(sections[results_index:discussion_index])
-                    else:
-                        methods_text = "\n".join(sections[intro_index + 1:])
-    
-            if len(results_text.strip()) == 0:
-                results_text = category_sections.get('results') or ''
+        abstract = '\n'.join(sections[:15])
+        introduction = category_sections.get('introduction') or ''
+        conclusion = category_sections.get('conclusion') or ''
+        discussion2 = category_sections.get('discussion') or ''
+        references = category_sections.get('references') or ''
+
+        if len(discussion2.strip()) == 0:
+            discussion2 = conclusion
         
-            abstract = '\n'.join(sections[:15])
-            introduction = category_sections.get('introduction') or ''
-            conclusion = category_sections.get('conclusion') or ''
-            discussion2 = category_sections.get('discussion') or ''
-            references = category_sections.get('references') or ''
-    
-            if len(discussion2.strip()) == 0:
-                discussion2 = conclusion
-            
-            if len(introduction.strip()) == 0:
-                introduction = category_sections.get('background') or ''
-            if isinstance(sections, str):
-                sections = sections.split('\n\n\n')
-    
-            # Extract title and author
-            title1 = '\n'.join(sections[:5])
-            author = '\n'.join(sections[0:4])
-            
-            title1 = '\n'.join(title1) if isinstance(title1, list) else title1
-            author = '\n'.join(author) if isinstance(author, list) else author
-            summary = '\n'.join(summary) if isinstance(summary, list) else summary
-            background_significance = '\n'.join(background_significance) if isinstance(background_significance, list) else background_significance
-            methods = '\n'.join(methods) if isinstance(methods, list) else methods
-            results = '\n'.join(results) if isinstance(results, list) else results
-            discussion = '\n'.join(discussion) if isinstance(discussion, list) else discussion
-            references = '\n'.join(references) if isinstance(references, list) else references
-            
-            paper_sections = {'title': title1, 'authors': author, 'summary': summary,
-                          'background_significance': background_significance, 'methods': methods,
-                          'results': results, 'discussion': discussion, 'references': references}
+        if len(introduction.strip()) == 0:
+            introduction = category_sections.get('background') or ''
+        if isinstance(sections, str):
+            sections = sections.split('\n\n\n')
+
+        # Extract title and author
+        title1 = '\n'.join(sections[:5])
+        author = '\n'.join(sections[0:4])
         
-            return paper_sections
-            
-            paper_summary = "## This is the summary of " + self._paper_sections['title'] + " paper \n\n"
+        title1 = '\n'.join(title1) if isinstance(title1, list) else title1
+        author = '\n'.join(author) if isinstance(author, list) else author
+        summary = '\n'.join(summary) if isinstance(summary, list) else summary
+        background_significance = '\n'.join(background_significance) if isinstance(background_significance, list) else background_significance
+        methods = '\n'.join(methods) if isinstance(methods, list) else methods
+        results = '\n'.join(results) if isinstance(results, list) else results
+        discussion = '\n'.join(discussion) if isinstance(discussion, list) else discussion
+        references = '\n'.join(references) if isinstance(references, list) else references
+        
+        paper_sections = {'title': title1, 'authors': author, 'summary': summary,
+                      'background_significance': background_significance, 'methods': methods,
+                      'results': results, 'discussion': discussion, 'references': references}
+    
+        return paper_sections
+        
+        paper_summary = "## This is the summary of " + self._paper_sections['title'] + " paper \n\n"
             
     def _get_paper_summary(self, feedback=""):
         paper_summary = "## This is the summary of " + self._paper_sections['title'] + " paper \n\n"
@@ -229,10 +228,6 @@ class SummaryGenerator(llm_caller_base.LLMCallerBase):
     #  Make use of the last round feedback if available
     # In this class you can make a call like this:
     # response = self.response_generator.generate(prompt) to pass a prompt to the llm model and get the response
-    final_path = os.path.join("test/models/model", f"llm_output.txt")
-
-    with open(final_path, "w" as file:
-        file.write(paper_summary)
     return paper_summary
 
             
