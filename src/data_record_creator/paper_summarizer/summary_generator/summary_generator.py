@@ -1,11 +1,17 @@
-from src.utils import llm_caller_base
-
+from src.utils import llm_caller_base #problem is here it is not recognizing this as a package
+import os
+import tempfile
+import fitz
+import pymupdf4llm
+import pathlib
 
 class SummaryGenerator(llm_caller_base.LLMCallerBase):
 
     def __init__(self):
         super().__init__()
         self._paper_sections = {}
+        self._category_sections = {}
+        self._categories = {'abstract', 'discussion', 'references', 'conclusion', 'introduction','results', 'methodologies', 'methods', 'methodology', 'background'}
 
     def generate(self, paper_file, feedback=""):
         self._paper_sections = self._extract_paper_sections(paper_file)
@@ -16,17 +22,16 @@ class SummaryGenerator(llm_caller_base.LLMCallerBase):
         return self._paper_sections
 
     @staticmethod
-    def _extract_paper_sections(paper_file):
-        pdf_path = os.path.join("test/models/model", pdf)
+    def _extract_paper_sections(paper_file, self):
+        pdf_path = os.path.join("test/models/model", paper_file)
         LOCAL_DOWNLOAD_DIR = tempfile.mkdtemp()
         os.makedirs(LOCAL_DOWNLOAD_DIR, exist_ok=True)
         pdf_document = fitz.open(pdf_path)
         outname_md = os.path.join(LOCAL_DOWNLOAD_DIR, f"pre_file.md") #create temp directory for this 
         md_text = pymupdf4llm.to_markdown(pdf_path)
         pathlib.Path(outname_md).write_bytes(md_text.encode())
-        pathlib.Path(outname_txt).write_bytes(md_text.encode())
 
-        with open(file_path, 'r', encoding='utf-8') as file: #only save the md file
+        with open(outname_md, 'r', encoding='utf-8') as file: #only save the md file
             content = file.read()
 
         sections = []
@@ -41,16 +46,16 @@ class SummaryGenerator(llm_caller_base.LLMCallerBase):
             else:
                 if current_section or line.strip():
                     current_section.append(line)
-            with open(file_path, 'r', encoding='utf-8') as file:
-        lines_list = file.readlines()
+            with open(outname_md, 'r', encoding='utf-8') as file:
+                lines_list = file.readlines()
 
         for section in sections:
             lines = section.splitlines()
             title2 = lines[:6]
             title = '\n'.join(title2)
-            for category in self.categories:
+            for category in self._categories:
                 if category in title.lower():
-                    category_sections[category] = section
+                    self._category_sections[category] = section
 
         methods2 = []
         results2 = []
@@ -78,14 +83,14 @@ class SummaryGenerator(llm_caller_base.LLMCallerBase):
         results_text = ''.join(results2).strip()
 
         if len(methods_text.strip()) == 0:
-            methods_text = category_sections.get('methods')
+            methods_text = self._category_sections.get('methods')
             if len(methods_text.strip()) == 0:
-                methods_text = category_sections.get('methodologies')
+                methods_text = self._category_sections.get('methodologies')
                 if len (methods_text.strip()) == 0:
-                    methods_text = category_sections.get('methodology') or ''
+                    methods_text = self._category_sections.get('methodology') or ''
                     
         if len(results_text.strip()) == 0:
-            results_text = category_sections.get('results') or ''
+            results_text = self._category_sections.get('results') or ''
             
         if len(methods_text.strip()) == 0 and len(results_text.strip()) == 0:
             intro_index = next((i for i, sec in enumerate(sections) if 'introduction' in sec.lower()), None)
@@ -104,19 +109,19 @@ class SummaryGenerator(llm_caller_base.LLMCallerBase):
                     methods_text = "\n".join(sections[intro_index + 1:])
 
         if len(results_text.strip()) == 0:
-            results_text = category_sections.get('results') or ''
+            results_text = self._category_sections.get('results') or ''
     
         abstract = '\n'.join(sections[:15])
-        introduction = category_sections.get('introduction') or ''
-        conclusion = category_sections.get('conclusion') or ''
-        discussion2 = category_sections.get('discussion') or ''
-        references = category_sections.get('references') or ''
+        introduction = self._category_sections.get('introduction') or ''
+        conclusion = self._category_sections.get('conclusion') or ''
+        discussion2 = self._category_sections.get('discussion') or ''
+        references = self._category_sections.get('references') or ''
 
         if len(discussion2.strip()) == 0:
             discussion2 = conclusion
         
         if len(introduction.strip()) == 0:
-            introduction = category_sections.get('background') or ''
+            introduction = self._category_sections.get('background') or ''
         if isinstance(sections, str):
             sections = sections.split('\n\n\n')
 
@@ -136,22 +141,35 @@ class SummaryGenerator(llm_caller_base.LLMCallerBase):
         paper_sections = {'title': title1, 'authors': author, 'summary': summary,
                       'background_significance': background_significance, 'methods': methods,
                       'results': results, 'discussion': discussion, 'references': references}
-    
+
         return paper_sections
-        
-        paper_summary = "## This is the summary of " + self._paper_sections['title'] + " paper \n\n"
-            
+                    
     def _get_paper_summary(self, feedback=""):
         paper_summary = "## This is the summary of " + self._paper_sections['title'] + " paper \n\n"
-        title_prompt = f"Context:{title1}" + self.get_title_prompt() #basically goes through the class, grabs function, and carries out the function)
-        author_prompt = f"Context{author}" + self.get_author_prompt()
-        summary_prompt = f"Context:{summary}" + self.get_summary_prompt()
-        background_significance_prompt = f"Context:{background_significance}" + self.get_background_significance_prompt()
-        methods_prompt = f"Context:{methods}" + self.get_methods_prompt()
-        results_prompt = f"Context:{results}" + self.get_results_prompt()
-        discussion_prompt = f"Context:{discussion}" + self.get_discussion_prompt()
-        references_prompt = f"Context:{references}" + self.get_references_prompt()
+        title_prompt = f"Context: {self._paper_sections['title']}" + {self.get_title_prompt()} #basically goes through the class, grabs function, and carries out the function)
+        author_prompt = f"Context: {self._paper_sections['author']}" + self.get_author_prompt()
+        summary_prompt = f"Context:{self._paper_sections['summary']}" + self.get_summary_prompt()
+        background_significance_prompt = f"Context:{self._paper_sections['background_significance']}" + self.get_background_significance_prompt()
+        methods_prompt = f"Context:{self._paper_sections['methods']}" + self.get_methods_prompt()
+        results_prompt = f"Context:{self._paper_sections['results']}" + self.get_results_prompt()
+        discussion_prompt = f"Context:{self._paper_sections['discussion']}" + self.get_discussion_prompt()
+        references_prompt = f"Context:{self._paper_sections['references']}" + self.get_references_prompt()
 
+        title_response = self.response_generator.generate(title_prompt)
+        author_response = self.response_generator.generate(author_prompt)
+        summary_response = self.response_generator.generate(summary_prompt)
+        background_significance_response = self.response_generator.generate(background_significance_prompt)
+        methods_response = self.response_generator.generate(methods_prompt)
+        results_response = self.response_generator.generate(results_prompt)
+        discussion_response = self.response_generator.generate(discussion_prompt)
+        references_response = self.response_generator.generate(references_prompt)
+
+        paper_summary = "## This is the summary of " + self._paper_sections['title'] + " paper \n\n" + "\n\n\n" + title_response + "\n\n\n" + author_response + "\n\n\n" + summary_response + "\n\n\n" + background_significance_response + "\n\n\n" + methods_response + "\n\n\n" + results_response + "\n\n\n" + discussion_response + "\n\n\n" + references_response 
+        #  Make use of the last round feedback if available
+        # In this class you can make a call like this:
+        # response = self.response_generator.generate(prompt) to pass a prompt to the llm model and get the response
+        return paper_summary
+    
     def get_title_prompt(self):
         return "Set the title for the section as '#Title' Directly state the title of the paper. Disregard all other text."
     def get_author_prompt(self):
@@ -215,19 +233,5 @@ class SummaryGenerator(llm_caller_base.LLMCallerBase):
                 __
                 
                 Do not output anything you do not know for certain."""
-    title_response = self.response_generator.generate(title_prompt)
-    author_response = self.response_generator.generate(author_prompt)
-    summary_response = self.response_generator.generate(summary_prompt)
-    background_significance_response = self.response_generator.generate(background_significance_prompt)
-    methods_response = self.response_generator.generate(methods_prompt)
-    results_response = self.response_generator.generate(results_prompt)
-    discussion_response = self.response_generator.generate(discussion_prompt)
-    references_response = self.response_generator.generate(references_prompt)
-
-    paper_summary = "## This is the summary of " + self._paper_sections['title'] + " paper \n\n" + "\n\n\n" + title_response + "\n\n\n" + author_response + "\n\n\n" + summary_response + "\n\n\n" + background_significance_response + "\n\n\n" + methods_response + "\n\n\n" + results_response + "\n\n\n" + discussion_response + "\n\n\n" + references_response 
-    #  Make use of the last round feedback if available
-    # In this class you can make a call like this:
-    # response = self.response_generator.generate(prompt) to pass a prompt to the llm model and get the response
-    return paper_summary
 
             
