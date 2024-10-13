@@ -1,4 +1,4 @@
-from src.utils import llm_caller_base #problem is here it is not recognizing this as a package
+from src.utils import llm_caller_base
 import os
 import tempfile
 import fitz
@@ -6,7 +6,6 @@ import pymupdf4llm
 import pathlib
 
 class SummaryGenerator(llm_caller_base.LLMCallerBase):
-
     def __init__(self):
         super().__init__()
         self._paper_sections = {}
@@ -14,24 +13,29 @@ class SummaryGenerator(llm_caller_base.LLMCallerBase):
         self._categories = {'abstract', 'discussion', 'references', 'conclusion', 'introduction','results', 'methodologies', 'methods', 'methodology', 'background'}
 
     def generate(self, paper_file, feedback=""):
-        self._paper_sections = self._extract_paper_sections(paper_file)
+        self._paper_sections = self._extract_paper_sections(self, paper_file)
         return "# Paper summary \n\n" + self._get_paper_summary(feedback)
-        #need to put entire code here, cannot reference other modules
 
     def get_paper_sections(self):
         return self._paper_sections
 
     @staticmethod
-    def _extract_paper_sections(paper_file, self):
-        pdf_path = os.path.join("test/models/model", paper_file)
+    def _extract_paper_sections(self, paper_file):
+        files = os.listdir("models") #this is rough for now, will need to ask 
+        #adel about problems with the paper_file attribute in passing into pymupdf4llm
+        for file in files:
+            if file.lower().endswith('.pdf'):
+                return file
+            
+        pdf_path = os.path.join("models", file, "model.pdf")
         LOCAL_DOWNLOAD_DIR = tempfile.mkdtemp()
         os.makedirs(LOCAL_DOWNLOAD_DIR, exist_ok=True)
         pdf_document = fitz.open(pdf_path)
-        outname_md = os.path.join(LOCAL_DOWNLOAD_DIR, f"pre_file.md") #create temp directory for this 
-        md_text = pymupdf4llm.to_markdown(pdf_path)
+        outname_md = os.path.join(LOCAL_DOWNLOAD_DIR, f"pre_file.md")
+        md_text = pymupdf4llm.to_markdown(pdf_document) 
         pathlib.Path(outname_md).write_bytes(md_text.encode())
 
-        with open(outname_md, 'r', encoding='utf-8') as file: #only save the md file
+        with open(outname_md, 'r', encoding='utf-8') as file:
             content = file.read()
 
         sections = []
@@ -46,7 +50,8 @@ class SummaryGenerator(llm_caller_base.LLMCallerBase):
             else:
                 if current_section or line.strip():
                     current_section.append(line)
-            with open(outname_md, 'r', encoding='utf-8') as file:
+                    
+        with open(outname_md, 'r', encoding='utf-8') as file:
                 lines_list = file.readlines()
 
         for section in sections:
@@ -57,11 +62,14 @@ class SummaryGenerator(llm_caller_base.LLMCallerBase):
                 if category in title.lower():
                     self._category_sections[category] = section
 
+
         methods2 = []
         results2 = []
         in_methods = False
         in_results = False
 
+        #some variables are not defined below 
+        
         for line in lines_list:
             if 'Methods' in line:
                 in_methods = True
@@ -97,7 +105,6 @@ class SummaryGenerator(llm_caller_base.LLMCallerBase):
             results_index = next((i for i, sec in enumerate(sections) if 'results' in sec.lower()), None)
             discussion_index = next((i for i, sec in enumerate(sections) if 'discussion' in sec.lower()), None)
 
-            # Define methods and results sections
             if intro_index is not None:
                 if results_index is not None:
                     methods_text = "\n".join(sections[intro_index + 1:results_index])
@@ -129,13 +136,16 @@ class SummaryGenerator(llm_caller_base.LLMCallerBase):
         title1 = '\n'.join(sections[:5])
         author = '\n'.join(sections[0:4])
         
+        summary = "\n\n\n".join([abstract, introduction, conclusion])
+        background_significance = introduction + '\n\n\n'
+        
         title1 = '\n'.join(title1) if isinstance(title1, list) else title1
         author = '\n'.join(author) if isinstance(author, list) else author
         summary = '\n'.join(summary) if isinstance(summary, list) else summary
         background_significance = '\n'.join(background_significance) if isinstance(background_significance, list) else background_significance
-        methods = '\n'.join(methods) if isinstance(methods, list) else methods
-        results = '\n'.join(results) if isinstance(results, list) else results
-        discussion = '\n'.join(discussion) if isinstance(discussion, list) else discussion
+        methods = '\n'.join(methods_text) if isinstance(methods_text, list) else methods_text
+        results = '\n'.join(results_text) if isinstance(results_text, list) else results_text
+        discussion = '\n'.join(discussion2) if isinstance(discussion2, list) else discussion2
         references = '\n'.join(references) if isinstance(references, list) else references
         
         paper_sections = {'title': title1, 'authors': author, 'summary': summary,
@@ -146,8 +156,8 @@ class SummaryGenerator(llm_caller_base.LLMCallerBase):
                     
     def _get_paper_summary(self, feedback=""):
         paper_summary = "## This is the summary of " + self._paper_sections['title'] + " paper \n\n"
-        title_prompt = f"Context: {self._paper_sections['title']}" + {self.get_title_prompt()} #basically goes through the class, grabs function, and carries out the function)
-        author_prompt = f"Context: {self._paper_sections['author']}" + self.get_author_prompt()
+        title_prompt = f"Context: {self._paper_sections['title']}" + self.get_title_prompt()
+        author_prompt = f"Context: {self._paper_sections['authors']}" + self.get_author_prompt()
         summary_prompt = f"Context:{self._paper_sections['summary']}" + self.get_summary_prompt()
         background_significance_prompt = f"Context:{self._paper_sections['background_significance']}" + self.get_background_significance_prompt()
         methods_prompt = f"Context:{self._paper_sections['methods']}" + self.get_methods_prompt()
@@ -233,5 +243,3 @@ class SummaryGenerator(llm_caller_base.LLMCallerBase):
                 __
                 
                 Do not output anything you do not know for certain."""
-
-            
