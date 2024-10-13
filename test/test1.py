@@ -2,6 +2,7 @@ import sys
 import os
 
 sys.path.append(os.path.abspath(os.path.join(os.path.dirname(__file__), '../src')))
+print(sys.path)
 
 from data_record_creator import data_record_creator
 
