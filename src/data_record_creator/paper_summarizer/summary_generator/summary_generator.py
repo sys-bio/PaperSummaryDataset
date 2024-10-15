@@ -10,7 +10,7 @@ class SummaryGenerator(llm_caller_base.LLMCallerBase):
         self._paper_sections = {}
 
     def generate(self, paper_file, feedback=""):
-        self._paper_sections = self._extract_paper_sections(paper_file)
+        self._paper_sections = self._extract_paper_sections(self, paper_file=paper_file)
         return "# Paper summary \n\n" + self._get_paper_summary(feedback)
         #need to put entire code here, cannot reference other modules
 
@@ -141,7 +141,7 @@ class SummaryGenerator(llm_caller_base.LLMCallerBase):
                           'results': results, 'discussion': discussion, 'references': references}
         
             return paper_sections
-            
+
             paper_summary = "## This is the summary of " + self._paper_sections['title'] + " paper \n\n"
             
             def _get_paper_summary(self, feedback=""):

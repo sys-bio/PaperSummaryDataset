@@ -13,7 +13,7 @@ class PaperSummarizer:
         return self._get_paper_summary(paper_file)
 
     def _get_paper_summary(self, paper_file, feedback=""):
-        summary = self.summarizer.generate(paper_file, feedback)
+        summary = self.summarizer.generate(paper_file=paper_file, feedback=feedback)
         paper_sections = self.summarizer.get_paper_sections()
         if self.summary_validator.validate(summary, paper_sections):
             return summary
@@ -24,3 +24,6 @@ class PaperSummarizer:
 
 
         return ""
+
+
+PaperSummarizer()._get_paper_summary(paper_file="paper.pdf")
