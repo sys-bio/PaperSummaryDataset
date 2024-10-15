@@ -67,15 +67,9 @@ class SummaryValidator(llm_caller_base.LLMCallerBase):
                                        "line after each section's score!"
                                        "the relevant section of the paper is as follows" + papersections[i] + ". " +
                                          evalcriteria[i]})
-        kmessages.append(
-            {'role': 'user',
-             'content': 'Please give a short commentary on why the summary lost points. Denote the start of the commentary with a ampersand sign (&). DO NOT LEAVE COMMENTARY AFTER EACH SCORE. ONLY LEAVE COMMENTARRY AFTER ALL SCORES HAVE BEEN OUTPUTTED.'}
-        )
-
         response = self.response_generator.generate(kmessages)
 
         rawscores = response['message']['content'].split("&")[0]
-        feedback = response['message']['content'].split("&")[1]
         re.sub(r'(\D)\1+', r'\1', rawscores)
 
         print(response['message']['content'])
