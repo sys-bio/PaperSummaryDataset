@@ -178,7 +178,7 @@ class SummaryGenerator(llm_caller_base.LLMCallerBase):
         #  Make use of the last round feedback if available
         # In this class you can make a call like this:
         # response = self.response_generator.generate(prompt) to pass a prompt to the llm model and get the response
-        return paper_summary
+        return paper_summary #want to assign it to a file or just return it?
     
     def get_title_prompt(self):
         return "Set the title for the section as '#Title' Directly state the title of the paper. Disregard all other text."
