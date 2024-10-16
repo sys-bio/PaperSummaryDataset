@@ -41,7 +41,7 @@ class DataRecordCreator:
         files = os.listdir(model_directory)
         for file in files:
             if file.lower().endswith('.pdf'):
-                return file
+                return model_directory + "/" + file
 
         return None
 
