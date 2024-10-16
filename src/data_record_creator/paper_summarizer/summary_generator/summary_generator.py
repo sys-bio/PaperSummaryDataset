@@ -21,16 +21,16 @@ class SummaryGenerator(llm_caller_base.LLMCallerBase):
 
     @staticmethod
     def _extract_paper_sections(self, paper_file):
-        files = os.listdir("models") #this is rough for now, will need to ask 
+        #files = os.listdir("models") #this is rough for now, will need to ask 
         #adel about problems with the paper_file attribute in passing into pymupdf4llm
-        for file in files:
-            if file.lower().endswith('.pdf'):
-                return file
+        #for file in files:
+            #if file.lower().endswith('.pdf'):
+               # return file
             
-        pdf_path = os.path.join("models", file, "model.pdf")
+        #pdf_path = os.path.join("models", file, "model.pdf")
         LOCAL_DOWNLOAD_DIR = tempfile.mkdtemp()
         os.makedirs(LOCAL_DOWNLOAD_DIR, exist_ok=True)
-        pdf_document = fitz.open(pdf_path)
+        pdf_document = fitz.open(paper_file)
         outname_md = os.path.join(LOCAL_DOWNLOAD_DIR, f"pre_file.md")
         md_text = pymupdf4llm.to_markdown(pdf_document) 
         pathlib.Path(outname_md).write_bytes(md_text.encode())
