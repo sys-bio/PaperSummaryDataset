@@ -148,11 +148,11 @@ class SummaryGenerator(llm_caller_base.LLMCallerBase):
         discussion = '\n'.join(discussion2) if isinstance(discussion2, list) else discussion2
         references = '\n'.join(references) if isinstance(references, list) else references
         
-        organized_sections = {'title': title1, 'authors': author, 'summary': summary,
+        paper_sections = {'title': title1, 'authors': author, 'summary': summary,
                       'background_significance': background_significance, 'methods': methods,
                       'results': results, 'discussion': discussion, 'references': references}
 
-        return organized_sections
+        return paper_sections
                     
     def _get_paper_summary(self, feedback=""):
         paper_summary = "## This is the summary of " + self._paper_sections['title'] + " paper \n\n"
