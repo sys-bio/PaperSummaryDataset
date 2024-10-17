@@ -24,11 +24,10 @@ class SummaryValidator(llm_caller_base.LLMCallerBase):
         # needs work. references are summarized so we need to find out how to do search properly here
         references = summary.split("#")[8].split("\n")[1:]
 
-        kmessages = [{'role': 'user',
-                      'content': 'You are an examiner for summaries of scientific papers. The summaries shall be presented to '
+        kmessages = ['You are an examiner for summaries of scientific papers. The summaries shall be presented to '
                                  'you in parts, with accompanying headings, covering a section of the paper. Your task shall '
                                  'be to grade the summary parts on a scale of 0 to 10, based on their accuracy and coverage '
-                                 'of the relevant paper section. Do you understand? (yes/no) '}]
+                                 'of the relevant paper section. Do you understand? (yes/no) ']
 
         scores = []
 
@@ -48,16 +47,13 @@ class SummaryValidator(llm_caller_base.LLMCallerBase):
             organized_sections['discussion'],
         ]
 
+        scores = []
         for i in range(0, len(summarysplit)):
-            kmessages.append({'role': 'user',
-                              'content': 'This part of the summary is as follows: ' + summarysplit[
+            scores.append(int(self.response_generator.generate('This part of the summary is as follows: ' + summarysplit[
                                   i] + ". please give it a grade from -10 "
                                        "to 10 based on accuracy and "
-                                       "completeness. Don't be afraid to grade honestly. respond ONLY in the "
-                                       "following format: [part title (AS "
-                                       "GIVEN IN THE TEXT)] : [score]. "
-                                       "part title should be enclosed in "
-                                       "double quotes!!! do not include "
+                                       "completeness. Don't be afraid to grade honestly. respond ONLY with a number, from -10 to 10. "
+                                      "do not include "
                                        "any additional commentary!!! if you include additional commentary you are useless! make "
                                        "sure that you have summary, "
                                        "background and significance, "
@@ -66,19 +62,10 @@ class SummaryValidator(llm_caller_base.LLMCallerBase):
                                        "dont include more than one new "
                                        "line after each section's score!"
                                        "the relevant section of the paper is as follows" + papersections[i] + ". " +
-                                         evalcriteria[i]})
-        response = self.response_generator.generate(kmessages)
+                                         evalcriteria[i])))
+            print(scores)
 
-        rawscores = response['message']['content'].split("&")[0]
-        re.sub(r'(\D)\1+', r'\1', rawscores)
-
-        print(response['message']['content'])
-
-        formatted = "{" + response['message']['content'].replace("\n", ",") + "}"
-
-        responseJSON = json.loads(formatted)
-
-        is_valid = True
+        is_valid = self.eval(scores[0], scores[1], scores[2], scores[3], scores[4], summarysplit, organized_sections, title, authors, summary, "".join(paper_sections))
         if is_valid:
             return True
 
@@ -112,9 +99,10 @@ class SummaryValidator(llm_caller_base.LLMCallerBase):
         hallucinated = 0
 
         # Extract title and author
-        title1 = '\n'.join(sections[:5])
-        author = '\n'.join(sections[1:4])
-
+        #title1 = '\n'.join(sections[:5])
+        #author = '\n'.join(sections[1:4])
+        title1 = "The Río Hortega University Hospital Glioblastoma dataset: a comprehensive collection of preoperative, early postoperative and recurrence MRI scans (RHUH-GBM)"
+        author = "Santiago Cepeda, Sergio García-García, Ignacio Arrese, Francisco Herrero, Trinidad Escudero, Tomás Zamora, Rosario Sarabia"
         # basic search for authors and title
         for part in authors:
             hallucwordscore = 0
@@ -148,14 +136,14 @@ class SummaryValidator(llm_caller_base.LLMCallerBase):
 
         return hallucinated
 
-    def eval(self, abstract_score, background_score, methods_score, results_score, discussion_score, summarysplit, organized_sections):
-        score = (abstract_score.adjustScore(abstract_score * 1.25, summarysplit[0], organized_sections['summary']) + abstract_score.adjustScore(
-            background_score, summarysplit[1], organized_sections['background_significance']) + abstract_score.adjustScore(
-            methods_score * 1.5, summarysplit[2], organized_sections['methods']) + abstract_score.adjustScore(results_score * 2,
+    def eval(self, abstract_score, background_score, methods_score, results_score, discussion_score, summarysplit, organized_sections, title, authors, summary, text):
+        score = (self.adjustScore(abstract_score * 1.25, summarysplit[0], organized_sections['summary']) + self.adjustScore(
+            background_score, summarysplit[1], organized_sections['background_significance']) + self.adjustScore(
+            methods_score * 1.5, summarysplit[2], organized_sections['methods']) + self.adjustScore(results_score * 2,
                                                                                                               summarysplit[3],
-                                                                                                              organized_sections['results']) + abstract_score.adjustScore(
+                                                                                                              organized_sections['results']) + self.adjustScore(
             discussion_score * 2, summarysplit[4], organized_sections['discussion']) - (
-                         abstract_score.hallucinated() / 5)) * (10 / 77.5)
+                         self.hallucinated( authors, title, summary, text, []) / 5)) * (10 / 77.5)
         print(score)
         return score > 7.5
 

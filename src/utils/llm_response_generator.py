@@ -4,6 +4,7 @@ import json
 
 class LLMResponseGenerator:
     def __init__(self, model="llama3.1", stream=False):
+
         self.model = model
         self.stream = stream
         self.url = "http://localhost:11434/api/generate"
