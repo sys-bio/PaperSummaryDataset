@@ -24,10 +24,10 @@ class SummaryValidator(llm_caller_base.LLMCallerBase):
         # needs work. references are summarized so we need to find out how to do search properly here
         references = summary.split("#")[8].split("\n")[1:]
 
-        kmessages = ['You are an examiner for summaries of scientific papers. The summaries shall be presented to '
+        self.response_generator.generate(['You are an examiner for summaries of scientific papers. The summaries shall be presented to '
                                  'you in parts, with accompanying headings, covering a section of the paper. Your task shall '
                                  'be to grade the summary parts on a scale of 0 to 10, based on their accuracy and coverage '
-                                 'of the relevant paper section. Do you understand? (yes/no) ']
+                                 'of the relevant paper section. Do you understand? (yes/no) '])
 
         scores = []
 
@@ -63,7 +63,7 @@ class SummaryValidator(llm_caller_base.LLMCallerBase):
                                        "line after each section's score!"
                                        "the relevant section of the paper is as follows" + papersections[i] + ". " +
                                          evalcriteria[i])))
-            print(scores)
+        print(scores)
 
         is_valid = self.eval(scores[0], scores[1], scores[2], scores[3], scores[4], summarysplit, organized_sections, title, authors, summary, "".join(paper_sections))
         if is_valid:
