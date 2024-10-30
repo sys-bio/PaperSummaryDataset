@@ -8,4 +8,4 @@ from data_record_creator import data_record_creator
 
 path_to_models = "models"
 data_record_creator = data_record_creator.DataRecordCreator()
-data_record_creator.create(path_to_models)
+data_record_creator.create(os.path.abspath(path_to_models))
