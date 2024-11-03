@@ -24,10 +24,11 @@ class SummaryValidator(llm_caller_base.LLMCallerBase):
         # needs work. references are summarized so we need to find out how to do search properly here
         references = summary.split("#")[8].split("\n")[1:]
 
-        self.response_generator.generate(['You are an examiner for summaries of scientific papers. The summaries shall be presented to '
+        self.response_generator.generate([{'role': 'user',
+              'content':'You are an examiner for summaries of scientific papers. The summaries shall be presented to '
                                  'you in parts, with accompanying headings, covering a section of the paper. Your task shall '
                                  'be to grade the summary parts on a scale of 0 to 10, based on their accuracy and coverage '
-                                 'of the relevant paper section. Do you understand? (yes/no) '])
+                                 'of the relevant paper section. Do you understand? (yes/no) '}])
 
         scores = []
 
@@ -49,7 +50,7 @@ class SummaryValidator(llm_caller_base.LLMCallerBase):
 
         scores = []
         for i in range(0, len(summarysplit)):
-            scores.append(int(self.response_generator.generate('This part of the summary is as follows: ' + summarysplit[
+            scores.append(int(self.response_generator.generate({'role': 'user', 'content': 'This part of the summary is as follows: ' + summarysplit[
                                   i] + ". please give it a grade from -10 "
                                        "to 10 based on accuracy and "
                                        "completeness. Don't be afraid to grade honestly. respond ONLY with a number, from -10 to 10. "
@@ -62,7 +63,7 @@ class SummaryValidator(llm_caller_base.LLMCallerBase):
                                        "dont include more than one new "
                                        "line after each section's score!"
                                        "the relevant section of the paper is as follows" + papersections[i] + ". " +
-                                         evalcriteria[i])))
+                                         evalcriteria[i]})))
         print(scores)
 
         is_valid = self.eval(scores[0], scores[1], scores[2], scores[3], scores[4], summarysplit, organized_sections, title, authors, summary, "".join(paper_sections))
@@ -95,22 +96,17 @@ class SummaryValidator(llm_caller_base.LLMCallerBase):
                 missing += papersection.count(item)
         return oscore - (missing / 5)
 
-    def hallucinated(self, authors, title, summary, text, sections):
+    def hallucinated(self, authors, title, summary, text):
         hallucinated = 0
 
-        # Extract title and author
-        #title1 = '\n'.join(sections[:5])
-        #author = '\n'.join(sections[1:4])
-        title1 = "The Río Hortega University Hospital Glioblastoma dataset: a comprehensive collection of preoperative, early postoperative and recurrence MRI scans (RHUH-GBM)"
-        author = "Santiago Cepeda, Sergio García-García, Ignacio Arrese, Francisco Herrero, Trinidad Escudero, Tomás Zamora, Rosario Sarabia"
         # basic search for authors and title
         for part in authors:
             hallucwordscore = 0
-            if part not in author:
+            if part not in text:
                 hallucinated += 1
         halluctitlescore = 0
         for word in title.split(" "):
-            if word not in title1:
+            if word not in text:
                 halluctitlescore += 1
         if halluctitlescore < len(title.split(" ")) / 2:
             hallucinated += halluctitlescore
@@ -143,10 +139,10 @@ class SummaryValidator(llm_caller_base.LLMCallerBase):
                                                                                                               summarysplit[3],
                                                                                                               organized_sections['results']) + self.adjustScore(
             discussion_score * 2, summarysplit[4], organized_sections['discussion']) - (
-                         self.hallucinated( authors, title, summary, text, []) / 5)) * (10 / 77.5)
+                         self.hallucinated( authors, title, summary, text) / 5)) * (10 / 77.5)
         print(score)
         return score > 7.5
 
     def _set_last_feedback(self):
         # todo This is the feedback you need to return in case the summary validation fails
-        self._last_feedback = self.response_generator.generate("Please give a short commentary on why the summary lost points. Be specific.")
+        self._last_feedback = self.response_generator.generate({'role': 'user', 'content':"Please give a short commentary on why the summary lost points. Be specific."})

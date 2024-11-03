@@ -26,4 +26,4 @@ class PaperSummarizer:
         return ""
 
 
-PaperSummarizer()._get_paper_summary(paper_file="paper.pdf")
+PaperSummarizer()._get_paper_summary(paper_file="/home/epshtein/Documents/GitHub/PaperSummaryDataset/src/paper.pdf")
