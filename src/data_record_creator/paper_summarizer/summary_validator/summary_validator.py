@@ -24,11 +24,11 @@ class SummaryValidator(llm_caller_base.LLMCallerBase):
         # needs work. references are summarized so we need to find out how to do search properly here
         references = summary.split("#")[8].split("\n")[1:]
 
-        self.response_generator.generate([{'role': 'user',
+        self.response_generator.generate({'role': 'user',
               'content':'You are an examiner for summaries of scientific papers. The summaries shall be presented to '
                                  'you in parts, with accompanying headings, covering a section of the paper. Your task shall '
                                  'be to grade the summary parts on a scale of 0 to 10, based on their accuracy and coverage '
-                                 'of the relevant paper section. Do you understand? (yes/no) '}])
+                                 'of the relevant paper section. Do you understand? (yes/no) '})
 
         scores = []
 
