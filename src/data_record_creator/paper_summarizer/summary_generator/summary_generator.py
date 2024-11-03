@@ -4,6 +4,8 @@ import tempfile
 import fitz
 import pymupdf4llm
 import pathlib
+import ollama
+
 
 class SummaryGenerator(llm_caller_base.LLMCallerBase):
     def __init__(self):
@@ -61,7 +63,6 @@ class SummaryGenerator(llm_caller_base.LLMCallerBase):
         in_methods = False
         in_results = False
 
-        #some variables are not defined below 
         
         for line in lines_list:
             if 'Methods' in line:
@@ -144,6 +145,8 @@ class SummaryGenerator(llm_caller_base.LLMCallerBase):
         paper_sections = {'title': title1, 'authors': author, 'summary': summary,
                       'background_significance': background_significance, 'methods': methods,
                       'results': results, 'discussion': discussion, 'references': references}
+        print("Paper Sections Below: ")
+        print(paper_sections)
 
         return paper_sections
                     
@@ -158,19 +161,18 @@ class SummaryGenerator(llm_caller_base.LLMCallerBase):
         discussion_prompt = f"Context:{self._paper_sections['discussion']}" + self.get_discussion_prompt()
         references_prompt = f"Context:{self._paper_sections['references']}" + self.get_references_prompt()
 
-        title_response = self.response_generator.generate(title_prompt)
-        author_response = self.response_generator.generate(author_prompt)
-        summary_response = self.response_generator.generate(summary_prompt)
-        background_significance_response = self.response_generator.generate(background_significance_prompt)
-        methods_response = self.response_generator.generate(methods_prompt)
-        results_response = self.response_generator.generate(results_prompt)
-        discussion_response = self.response_generator.generate(discussion_prompt)
-        references_response = self.response_generator.generate(references_prompt)
+        title_response = ollama.generate(model = "llama3", prompt = title_prompt)
+        author_response = ollama.generate(model = "llama3", prompt = author_prompt)
+        summary_response = ollama.generate(model = "llama3", prompt = summary_prompt)
+        background_significance_response = ollama.generate(model = "llama3", prompt = background_significance_prompt)
+        methods_response = ollama.generate(model = "llama3", prompt = methods_prompt)
+        results_response = ollama.generate(model = "llama3", prompt = results_prompt)
+        discussion_response = ollama.generate(model = "llama3", prompt = discussion_prompt)
+        references_response = ollama.generate(model = "llama3", prompt = references_prompt)
 
         paper_summary = "## This is the summary of " + self._paper_sections['title'] + " paper \n\n" + "\n\n\n" + title_response + "\n\n\n" + author_response + "\n\n\n" + summary_response + "\n\n\n" + background_significance_response + "\n\n\n" + methods_response + "\n\n\n" + results_response + "\n\n\n" + discussion_response + "\n\n\n" + references_response 
-        #  Make use of the last round feedback if available
-        # In this class you can make a call like this:
-        # response = self.response_generator.generate(prompt) to pass a prompt to the llm model and get the response
+        print("Paper Summary Below: ")
+        print(paper_summary)
         return paper_summary #want to assign it to a file or just return it?
     
     def get_title_prompt(self):
