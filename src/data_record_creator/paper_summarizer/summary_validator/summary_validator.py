@@ -17,18 +17,23 @@ class SummaryValidator(llm_caller_base.LLMCallerBase):
         # In this class you can make a call like this:
         # response = self.response_generator.generate(prompt) to pass a prompt to the llm model and get the response
         organized_sections = paper_sections
-        title = summary.split("#")[1]
-        authors = [word for sentence in summary.split("#")[2].split('\n')[1:-2] for word in sentence.split(",", 1)]
-        summarysplit = summary.split("#")[3:8]
+        title = summary["title"]
+        authors = [word for sentence in summary["authors"].split('\n')[1:-2] for word in sentence.split(",", 1)]
+        summarysplit = [
+            summary["summary"],
+            summary["background"],
+            summary["methods"],
+            summary["results"],
+            summary["discussion"],
+        ]
 
         # needs work. references are summarized so we need to find out how to do search properly here
-        references = summary.split("#")[8].split("\n")[1:]
+        references = summary['references']
 
-        self.response_generator.generate({'role': 'user',
-              'content':'You are an examiner for summaries of scientific papers. The summaries shall be presented to '
-                                 'you in parts, with accompanying headings, covering a section of the paper. Your task shall '
-                                 'be to grade the summary parts on a scale of 0 to 10, based on their accuracy and coverage '
-                                 'of the relevant paper section. Do you understand? (yes/no) '})
+        self.response_generator.generate('You are an examiner for summaries of scientific papers. The summaries shall be presented to '
+                                                     'you in parts, with accompanying headings, covering a section of the paper. Your task shall '
+                                                     'be to grade the summary parts on a scale of 0 to 10, based on their accuracy and coverage '
+                                                     'of the relevant paper section. Do you understand? (yes/no) ')
 
         scores = []
 
@@ -50,23 +55,24 @@ class SummaryValidator(llm_caller_base.LLMCallerBase):
 
         scores = []
         for i in range(0, len(summarysplit)):
-            scores.append(int(self.response_generator.generate({'role': 'user', 'content': 'This part of the summary is as follows: ' + summarysplit[
-                                  i] + ". please give it a grade from -10 "
-                                       "to 10 based on accuracy and "
-                                       "completeness. Don't be afraid to grade honestly. respond ONLY with a number, from -10 to 10. "
-                                      "do not include "
-                                       "any additional commentary!!! if you include additional commentary you are useless! make "
-                                       "sure that you have summary, "
-                                       "background and significance, "
-                                       "methods, results, and discussion "
-                                       "sections. don't leave anything out! if you include anything extra you are useless! EACH SECTION HAS CONTENT"
-                                       "dont include more than one new "
-                                       "line after each section's score!"
-                                       "the relevant section of the paper is as follows" + papersections[i] + ". " +
-                                         evalcriteria[i]})))
+            scores.append(int(self.response_generator.generate('This part of the summary is as follows: ' + summarysplit[
+                    i] + ". please give it a grade from -10 "
+                         "to 10 based on accuracy and "
+                         "completeness. Don't be afraid to grade honestly. respond ONLY with a number, from -10 to 10. "
+                         "do not include "
+                         "any additional commentary!!! if you include additional commentary you are useless! make "
+                         "sure that you have summary, "
+                         "background and significance, "
+                         "methods, results, and discussion "
+                         "sections. don't leave anything out! if you include anything extra you are useless! EACH SECTION HAS CONTENT"
+                         "dont include more than one new "
+                         "line after each section's score!"
+                         "the relevant section of the paper is as follows" + papersections[i] + ". " +
+                                            evalcriteria[i])))
         print(scores)
 
-        is_valid = self.eval(scores[0], scores[1], scores[2], scores[3], scores[4], summarysplit, organized_sections, title, authors, summary, "".join(paper_sections))
+        is_valid = self.eval(scores[0], scores[1], scores[2], scores[3], scores[4], summarysplit, organized_sections,
+                             title, authors, summary, "".join(paper_sections))
         if is_valid:
             return True
 
@@ -132,17 +138,20 @@ class SummaryValidator(llm_caller_base.LLMCallerBase):
 
         return hallucinated
 
-    def eval(self, abstract_score, background_score, methods_score, results_score, discussion_score, summarysplit, organized_sections, title, authors, summary, text):
-        score = (self.adjustScore(abstract_score * 1.25, summarysplit[0], organized_sections['summary']) + self.adjustScore(
+    def eval(self, abstract_score, background_score, methods_score, results_score, discussion_score, summarysplit,
+             organized_sections, title, authors, summary, text):
+        score = (self.adjustScore(abstract_score * 1.25, summarysplit[0],
+                                  organized_sections['summary']) + self.adjustScore(
             background_score, summarysplit[1], organized_sections['background_significance']) + self.adjustScore(
             methods_score * 1.5, summarysplit[2], organized_sections['methods']) + self.adjustScore(results_score * 2,
-                                                                                                              summarysplit[3],
-                                                                                                              organized_sections['results']) + self.adjustScore(
+                                                                                                    summarysplit[3],
+                                                                                                    organized_sections[
+                                                                                                        'results']) + self.adjustScore(
             discussion_score * 2, summarysplit[4], organized_sections['discussion']) - (
-                         self.hallucinated( authors, title, summary, text) / 5)) * (10 / 77.5)
+                         self.hallucinated(authors, title, summary, text) / 5)) * (10 / 77.5)
         print(score)
         return score > 7.5
 
     def _set_last_feedback(self):
         # todo This is the feedback you need to return in case the summary validation fails
-        self._last_feedback = self.response_generator.generate({'role': 'user', 'content':"Please give a short commentary on why the summary lost points. Be specific."})
+        self._last_feedback = self.response_generator.generate("Please give a short commentary on why the summary lost points. Be specific.")

@@ -170,10 +170,23 @@ class SummaryGenerator(llm_caller_base.LLMCallerBase):
         discussion_response = ollama.generate(model = "llama3", prompt = discussion_prompt)
         references_response = ollama.generate(model = "llama3", prompt = references_prompt)
 
+
+
         paper_summary = "## This is the summary of " + self._paper_sections['title'] + " paper \n\n" + "\n\n\n" + title_response + "\n\n\n" + author_response + "\n\n\n" + summary_response + "\n\n\n" + background_significance_response + "\n\n\n" + methods_response + "\n\n\n" + results_response + "\n\n\n" + discussion_response + "\n\n\n" + references_response 
         print("Paper Summary Below: ")
         print(paper_summary)
-        return paper_summary #want to assign it to a file or just return it?
+        paper_summary_dict = {
+            "pst": self._paper_sections['title'],
+            "title": title_response,
+            "authors" : author_response,
+            "background" : background_significance_response,
+            "summary" : summary_response,
+            "methods" : methods_response,
+            "discussion" : discussion_response,
+            "results" : results_response,
+            "references" : references_response,
+        }
+        return paper_summary_dict #want to assign it to a file or just return it?
     
     def get_title_prompt(self):
         return "Set the title for the section as '#Title' Directly state the title of the paper. Disregard all other text."
