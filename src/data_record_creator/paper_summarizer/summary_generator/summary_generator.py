@@ -161,14 +161,14 @@ class SummaryGenerator(llm_caller_base.LLMCallerBase):
         discussion_prompt = f"Context:{self._paper_sections['discussion']}" + self.get_discussion_prompt()
         references_prompt = f"Context:{self._paper_sections['references']}" + self.get_references_prompt()
 
-        title_response = ollama.generate(model = "llama3", prompt = title_prompt)
-        author_response = ollama.generate(model = "llama3", prompt = author_prompt)
-        summary_response = ollama.generate(model = "llama3", prompt = summary_prompt)
-        background_significance_response = ollama.generate(model = "llama3", prompt = background_significance_prompt)
-        methods_response = ollama.generate(model = "llama3", prompt = methods_prompt)
-        results_response = ollama.generate(model = "llama3", prompt = results_prompt)
-        discussion_response = ollama.generate(model = "llama3", prompt = discussion_prompt)
-        references_response = ollama.generate(model = "llama3", prompt = references_prompt)
+        title_response['response'] = ollama.generate(model = "llama3", prompt = title_prompt)
+        author_response['response'] = ollama.generate(model = "llama3", prompt = author_prompt)
+        summary_response['response'] = ollama.generate(model = "llama3", prompt = summary_prompt)
+        background_significance_response['response'] = ollama.generate(model = "llama3", prompt = background_significance_prompt)
+        methods_response['response'] = ollama.generate(model = "llama3", prompt = methods_prompt)
+        results_response['response'] = ollama.generate(model = "llama3", prompt = results_prompt)
+        discussion_response['response'] = ollama.generate(model = "llama3", prompt = discussion_prompt)
+        references_response['response'] = ollama.generate(model = "llama3", prompt = references_prompt)
 
         paper_summary = "## This is the summary of " + self._paper_sections['title'] + " paper \n\n" + "\n\n\n" + title_response + "\n\n\n" + author_response + "\n\n\n" + summary_response + "\n\n\n" + background_significance_response + "\n\n\n" + methods_response + "\n\n\n" + results_response + "\n\n\n" + discussion_response + "\n\n\n" + references_response 
         print("Paper Summary Below: ")
