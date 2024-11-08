@@ -34,9 +34,6 @@ class SummaryValidator(llm_caller_base.LLMCallerBase):
                                                      'you in parts, with accompanying headings, covering a section of the paper. Your task shall '
                                                      'be to grade the summary parts on a scale of 0 to 10, based on their accuracy and coverage '
                                                      'of the relevant paper section. Do you understand? (yes/no) ')
-
-        scores = []
-
         evalcriteria = [
             "Ensure the summary is clear, specific, and informative without including unnecessary details.",
             "Ensure the summary captures the rationale behind the research and its potential impact or contribution to the field, presented as a clean and concise background and significance section.",
@@ -57,22 +54,13 @@ class SummaryValidator(llm_caller_base.LLMCallerBase):
         for i in range(0, len(summarysplit)):
             scores.append(int(self.response_generator.generate('This part of the summary is as follows: ' + summarysplit[
                     i] + ". please give it a grade from -10 "
-                         "to 10 based on accuracy and "
-                         "completeness. Don't be afraid to grade honestly. respond ONLY with a number, from -10 to 10. "
-                         "do not include "
-                         "any additional commentary!!! if you include additional commentary you are useless! make "
-                         "sure that you have summary, "
-                         "background and significance, "
-                         "methods, results, and discussion "
-                         "sections. don't leave anything out! if you include anything extra you are useless! EACH SECTION HAS CONTENT"
-                         "dont include more than one new "
-                         "line after each section's score!"
+                         "to 10 based on accuracy and completeness."
                          "the relevant section of the paper is as follows" + papersections[i] + ". " +
-                                            evalcriteria[i])))
-        print(scores)
+                                            evalcriteria[i] + "REPLY ONLY WITH ONE INTEGER VALUE BETWEEN -10 AND 10. NO TEXT.")))
 
         is_valid = self.eval(scores[0], scores[1], scores[2], scores[3], scores[4], summarysplit, organized_sections,
                              title, authors, summary, "".join(paper_sections))
+        print(scores)
         if is_valid:
             return True
 
@@ -98,11 +86,10 @@ class SummaryValidator(llm_caller_base.LLMCallerBase):
             maxes.append(mostUsed)
         for item in maxes:
             if item not in summarysection:
-                print(item)
                 missing += papersection.count(item)
         return oscore - (missing / 5)
 
-    def hallucinated(self, authors, title, summary, text):
+    def hallucinated(self, authors, title, summarytext, text):
         hallucinated = 0
 
         # basic search for authors and title
@@ -116,10 +103,9 @@ class SummaryValidator(llm_caller_base.LLMCallerBase):
                 halluctitlescore += 1
         if halluctitlescore < len(title.split(" ")) / 2:
             hallucinated += halluctitlescore
-        print(hallucinated)
 
         # specific words
-        results = summary
+        results = summarytext
         translator = str.maketrans('', '', r"""!"#$%&'()*+,./:;<=>?@[\]^_`{|}~""")
         results = results.translate(translator).split(' ')
         # now how do I generate a score?
@@ -133,22 +119,20 @@ class SummaryValidator(llm_caller_base.LLMCallerBase):
             maxes.append(mostUsed)
         for item in maxes:
             if item not in text:
-                print(item)
-                hallucinated += summary.count(item)
+                hallucinated += summarytext.count(item)
 
         return hallucinated
 
     def eval(self, abstract_score, background_score, methods_score, results_score, discussion_score, summarysplit,
              organized_sections, title, authors, summary, text):
-        score = (self.adjustScore(abstract_score * 1.25, summarysplit[0],
-                                  organized_sections['summary']) + self.adjustScore(
+        score = ((abstract_score * 1.25) + self.adjustScore(
             background_score, summarysplit[1], organized_sections['background_significance']) + self.adjustScore(
             methods_score * 1.5, summarysplit[2], organized_sections['methods']) + self.adjustScore(results_score * 2,
                                                                                                     summarysplit[3],
                                                                                                     organized_sections[
                                                                                                         'results']) + self.adjustScore(
             discussion_score * 2, summarysplit[4], organized_sections['discussion']) - (
-                         self.hallucinated(authors, title, summary, text) / 5)) * (10 / 77.5)
+                         self.hallucinated(authors, title, ''.join(x for x in summary.values()), text) / 5)) * (10 / 77.5)
         print(score)
         return score > 7.5
 
