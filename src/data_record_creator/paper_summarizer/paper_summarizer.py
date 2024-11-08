@@ -44,6 +44,7 @@ class PaperSummarizer:
         else:
             self.max_num_of_tries += 1
             if self.max_num_of_tries < 5:
+                print(self.summary_validator.get_last_feedback())
                 self._get_paper_summary(paper_file, self.summary_validator.get_last_feedback())
 
 

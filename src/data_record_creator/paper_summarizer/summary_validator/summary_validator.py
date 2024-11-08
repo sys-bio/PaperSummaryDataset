@@ -61,11 +61,11 @@ class SummaryValidator(llm_caller_base.LLMCallerBase):
         is_valid = self.eval(scores[0], scores[1], scores[2], scores[3], scores[4], summarysplit, organized_sections,
                              title, authors, summary, "".join(paper_sections))
         print(scores)
-        if is_valid:
+        if is_valid > 7.5:
             return True
 
         # todo you probably need to move _set_last_feedback() to the place where you validate the summary
-        self._set_last_feedback()
+        self._set_last_feedback(''.join(x for x in summary.values()),  "".join(paper_sections), is_valid)
         return False
 
     def get_last_feedback(self):
@@ -134,8 +134,10 @@ class SummaryValidator(llm_caller_base.LLMCallerBase):
             discussion_score * 2, summarysplit[4], organized_sections['discussion']) - (
                          self.hallucinated(authors, title, ''.join(x for x in summary.values()), text) / 5)) * (10 / 77.5)
         print(score)
-        return score > 7.5
+        return score
 
-    def _set_last_feedback(self):
+    def _set_last_feedback(self, summary_text, text, points):
         # todo This is the feedback you need to return in case the summary validation fails
-        self._last_feedback = self.response_generator.generate("Please give a short commentary on why the summary lost points. Be specific.")
+
+        self._last_feedback = self.response_generator.generate("You are an examiner for summaries of scientific papers. You have been presented with the following summary:" + summary_text + ", which is a summary of the following paper:"
+                                                               + text + "it received " + points.__str__() + "points, under the threshhold of 7.5 required to pass. Please give a short commentary on why the summary lost points. Be specific.")
