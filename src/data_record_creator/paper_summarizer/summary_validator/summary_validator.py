@@ -125,12 +125,12 @@ class SummaryValidator(llm_caller_base.LLMCallerBase):
              organized_sections, title, authors, summary, text):
         score = ((abstract_score * 1.25) + self.adjustScore(
             background_score, summarysplit[1], organized_sections['background_significance']) + self.adjustScore(
-            methods_score * 1.5, summarysplit[2], organized_sections['methods']) + self.adjustScore(results_score * 1.5,
+            methods_score * 1.5, summarysplit[2], organized_sections['methods']) + self.adjustScore(results_score * 2,
                                                                                                     summarysplit[3],
                                                                                                     organized_sections[
                                                                                                         'results']) + self.adjustScore(
             discussion_score * 2, summarysplit[4], organized_sections['discussion']) - (
-                         self.hallucinated(authors, title, ''.join(x for x in summary.values()), text) / 5)) * (10 / 75)
+                         self.hallucinated(authors, title, ''.join(x for x in summary.values()), text) / 10)) * (10 / 75)
         print(score)
         return score
 
