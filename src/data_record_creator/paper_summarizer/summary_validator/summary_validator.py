@@ -75,7 +75,6 @@ class SummaryValidator(llm_caller_base.LLMCallerBase):
         missing = 0
         translator = str.maketrans('', '', r"""!"#$%&'()*+,./:;<=>?@[\]^_`{|}~""")
         words = papersection.translate(translator).split(' ')
-        # now how do I generate a score?
         maxes = []
         while len(maxes) < 5:
             mostUsed = max(set(words), key=words.count)
@@ -91,7 +90,6 @@ class SummaryValidator(llm_caller_base.LLMCallerBase):
 
     def hallucinated(self, authors, title, summarytext, text):
         hallucinated = 0
-
         # basic search for authors and title
         for part in authors:
             hallucwordscore = 0
@@ -127,12 +125,12 @@ class SummaryValidator(llm_caller_base.LLMCallerBase):
              organized_sections, title, authors, summary, text):
         score = ((abstract_score * 1.25) + self.adjustScore(
             background_score, summarysplit[1], organized_sections['background_significance']) + self.adjustScore(
-            methods_score * 1.5, summarysplit[2], organized_sections['methods']) + self.adjustScore(results_score * 2,
+            methods_score * 1.5, summarysplit[2], organized_sections['methods']) + self.adjustScore(results_score * 1.5,
                                                                                                     summarysplit[3],
                                                                                                     organized_sections[
                                                                                                         'results']) + self.adjustScore(
             discussion_score * 2, summarysplit[4], organized_sections['discussion']) - (
-                         self.hallucinated(authors, title, ''.join(x for x in summary.values()), text) / 5)) * (10 / 77.5)
+                         self.hallucinated(authors, title, ''.join(x for x in summary.values()), text) / 5)) * (10 / 75)
         print(score)
         return score
 
