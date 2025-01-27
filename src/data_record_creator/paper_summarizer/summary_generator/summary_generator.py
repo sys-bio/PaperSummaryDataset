@@ -1,180 +1,222 @@
-from src.utils import llm_caller_base
-import os
-import tempfile
 import fitz
-import pymupdf4llm
-import pathlib
-import ollama
+import re
+import os 
+from transformers import AutoTokenizer, AutoModelForTokenClassification
+from transformers import pipeline
+import tempfile 
+import ollama 
 
-
-class SummaryGenerator(llm_caller_base.LLMCallerBase):
-    def __init__(self):
+class SummaryGenerator(llm_caller_base.LLMCallerBase): 
+    def__init__(self): 
         super().__init__()
-        self._paper_sections = {}
-        self._category_sections = {}
-        self._categories = {'abstract', 'discussion', 'references', 'conclusion', 'introduction','results', 'methodologies', 'methods', 'methodology', 'background'}
-
-    def generate(self, paper_file, feedback=""):
-        self._paper_sections = self._extract_paper_sections(self, paper_file)
-        return "# Paper summary \n\n" + self._get_paper_summary(feedback)
-
-    def get_paper_sections(self):
-        return self._paper_sections
-
-    @staticmethod
-    def _extract_paper_sections(self, paper_file):
-        LOCAL_DOWNLOAD_DIR = tempfile.mkdtemp()
-        os.makedirs(LOCAL_DOWNLOAD_DIR, exist_ok=True)
-        pdf_document = fitz.open(paper_file)
-        outname_md = os.path.join(LOCAL_DOWNLOAD_DIR, f"pre_file.md")
-        md_text = pymupdf4llm.to_markdown(pdf_document) 
-        pathlib.Path(outname_md).write_bytes(md_text.encode())
-
-        with open(outname_md, 'r', encoding='utf-8') as file:
-            content = file.read()
-
-        sections = []
-        current_section = []
-
-        for line in content.splitlines():
-            if line.startswith(('**', '##', '#')):
-                if current_section:
-                    sections.append('\n'.join(current_section))
-                    current_section = []
-                current_section.append(line)
-            else:
-                if current_section or line.strip():
-                    current_section.append(line)
-                    
-        with open(outname_md, 'r', encoding='utf-8') as file:
-                lines_list = file.readlines()
-
-        for section in sections:
-            lines = section.splitlines()
-            title2 = lines[:6]
-            title = '\n'.join(title2)
-            for category in self._categories:
-                if category in title.lower():
-                    self._category_sections[category] = section
-
-
-        methods2 = []
-        results2 = []
-        in_methods = False
-        in_results = False
-
+        self._organized_sections = {}
+        self._categories = {"abstract": "", "introduction": "", "methods" : "", "results" : "", "discussion": "", "conclusion" : "", "references" : "", "title" : "", "authors" : ""}
         
-        for line in lines_list:
-            if 'Methods' in line:
-                in_methods = True
-                continue  # Skip the line containing 'Methods'
-            if 'Results' in line:
-                in_results = True
-                in_methods = False
-                continue  # Skip the line containing 'Results'
-            if 'Discussion' in line or 'Conclusion' in line or 'References' in line:
-                in_results = False
-                break  # Stop if we've reached the Discussion or Conclusion
+    def generate(self, paper_file, feedback = ""): 
+        return "# Paper summary \n\n" + self._process_files(feedback)
+    
+    def get_paper_sections(self): 
+        return self._organized_sections
+    
+    def clean_text(self, text):
+        cleaned_text = "\n".join([line for line in text.splitlines() if re.match(r'^[\x00-\x7F]+$', line)])
+        return cleaned_text
 
-            if in_methods:
-                methods2.append(line)
-            elif in_results:
-                results2.append(line)
+    def extract_and_clean_pdf(self, pdf_path):
+        print(f"Extracting text from PDF: {pdf_path}...")
+        doc = fitz.open(pdf_path)
+        pdf_text = ""
 
-        methods_text = ''.join(methods2).strip()
-        results_text = ''.join(results2).strip()
+        for page in doc:
+            pdf_text += page.get_text("text") + "\n"
 
-        if len(methods_text.strip()) == 0:
-            methods_text = self._category_sections.get('methods')
-            if len(methods_text.strip()) == 0:
-                methods_text = self._category_sections.get('methodologies')
-                if len (methods_text.strip()) == 0:
-                    methods_text = self._category_sections.get('methodology') or ''
-                    
-        if len(results_text.strip()) == 0:
-            results_text = self._category_sections.get('results') or ''
+        cleaned_text = self.clean_text(pdf_text)
+        return cleaned_text
+    
+    def process_files(self, paper_file): 
+        LOCAL_DOWNLOAD_DIR = tempfile.mkdtemp() 
+        os.makedirs(LOCAL_DOWNLOAD_DIR, exist_ok = True) 
+        cleaned_text = self.extract_and_clean_pdf(paper_file)
+        
+        lines_before_abstract, grouped_sentences = self.split_top_file(cleaned_text)
+        self.split_lines_before(lines_before_abstract)
+        self.split_lines_after(grouped_sentences)
+        organized_sections = self.group_lines()
+        self.organized_sections = organized_sections
+        
+        final = self.summarize_sections(organized_sections)
+        return final
+
+    def split_top_file(self, md_text):
+        lines_before_abstract = []
+        abstract = ""
+        text_after_abstract = ""
+        reached_abstract = False
+        reached_introduction = False
+
+        # Split the text into lines
+        for line in md_text.splitlines():
+            if ("abstract" in line.lower() or "summary" in line.lower()) and len(line.split()) == 1:  # Start capturing the abstract once "abstract" or "background" is found
+                reached_abstract = True
+                abstract += line + "\n"  # Add the abstract header line
+                continue  # Skip the abstract header line itself
+
+            if reached_abstract and not reached_introduction:  # Capture the abstract content until Introduction
+                abstract += line + "\n"
+                
+            # Check for the introduction or background header as a single word
+            if reached_abstract and not reached_introduction:
+                line_words = line.strip().split()  # Split the line into words
+                if len(line_words) == 1 and ("introduction" in line.lower() or "background" in line.lower()):
+                    reached_introduction = True
+                    continue  # Skip the introduction/header line (do not add to abstract)
+
+            # Capture everything after the abstract (including introduction and beyond)
+            if reached_abstract and reached_introduction:
+                text_after_abstract += line + "\n"
+
+            if not reached_abstract:
+                # Collect lines before the abstract
+                lines_before_abstract.append(line)
+
+        # Split the part after the abstract into sentences for grouping
+        sentences_after_abstract = re.split(r'(?<!\w\.\w.)(?<![A-Z][a-z]\.)(?<=\.|\?)\s', text_after_abstract.strip())
+        grouped_sentences = [sentences_after_abstract[i:i + 7] for i in range(0, len(sentences_after_abstract), 7)]
+
+        self.categories["abstract"] = abstract
+        return lines_before_abstract, grouped_sentences
+
+    def split_lines_before(self, lines_before_abstract): 
+        contains_person = False
+        abstract_found = False
+
+        title = ""
+        authors = "" 
+        
+        for _, line in enumerate(lines_before_abstract):
+            tokenizer = AutoTokenizer.from_pretrained("dslim/bert-large-NER")
+            model = AutoModelForTokenClassification.from_pretrained("dslim/bert-large-NER")
+            nlp = pipeline("ner", model=model, tokenizer=tokenizer)
+            results_for_nlp = nlp(line)
             
-        if len(methods_text.strip()) == 0 and len(results_text.strip()) == 0:
-            intro_index = next((i for i, sec in enumerate(sections) if 'introduction' in sec.lower()), None)
-            results_index = next((i for i, sec in enumerate(sections) if 'results' in sec.lower()), None)
-            discussion_index = next((i for i, sec in enumerate(sections) if 'discussion' in sec.lower()), None)
+            for entity in results_for_nlp:
+                if entity['entity'] in ["PER", "B-PER", "I-PER", "LOC", "ORG"]:
+                    authors += line + "\n"
+                    contains_person = True
+                    break
+                
+            if "abstract" in line.lower(): 
+                abstract_found = True
+                
+            if not contains_person and not abstract_found:
+                title += line + "\n"
+        
+        self.categories["title"] = title 
+        self.categories["authors"] = authors
+        
+    def split_lines_after(self, grouped_sentences):
+        introduction = ""
+        methods = ""
+        results = ""
+        discussion = ""
+        conclusion = ""
+        references = ""
+        for idx, group in enumerate(grouped_sentences):
+            group_text = "\n".join(group)
+            print(f"Processing group {idx + 1}/{len(grouped_sentences)}: {group_text[:100]}...")
 
-            if intro_index is not None:
-                if results_index is not None:
-                    methods_text = "\n".join(sections[intro_index + 1:results_index])
-                    results_text = sections[results_index]
-                elif discussion_index is not None:
-                    methods_text = "\n".join(sections[intro_index + 1:discussion_index])
-                    results_text = "\n".join(sections[results_index:discussion_index])
-                else:
-                    methods_text = "\n".join(sections[intro_index + 1:])
+            prompt_template = f"""
+            Classify the given text into one of the following sections:
 
-        if len(results_text.strip()) == 0:
-            results_text = self._category_sections.get('results') or ''
+            Introduction: Provides background information, outlines the research problem, or states the research objectives or hypothesis.
+
+            Methods: Describes the procedures, techniques, materials, and methodology used to conduct the research.
+
+            Results: Reports the raw findings from the study. This section presents data, observations, or outcomes without providing any explanations or interpretations. Results typically include specific measurements, statistical outcomes, trends, or comparisons. It focuses purely on what was observed or measured, with no discussion of why these results occurred.
+
+            Discussion: Analyzes and interprets the findings. This section explains the significance of the results, connects them to existing research, identifies potential reasons for observed trends or discrepancies, and may include study limitations or suggestions for future research. The discussion provides context or explanations for the observed results and does not just state raw data.
+
+            Conclusion: Summarizes the key findings, provides an answer to the research question, and highlights broader implications. This section typically begins with phrases such as "In conclusion," "To conclude," or "In summary," and may suggest future research directions or implications for practice. It does not introduce new data or results but reflects on the meaning or significance of the study as a whole.
+            If the section contains "In conclusion, " return conclusion.
+
+            References: Lists all sources cited throughout the paper.
+            
+            ONLY OUTPUT THE NAME OF THE SECTION. DO NOT EXPLAIN YOUR DECISION-MAKING. 
+            
+            Text: {group_text}
+            """
+            
+            # Get classification from Groq API
+            print(f"Sending request to Groq API for group {idx + 1}...")
+            
+            category = ollama.generate(model = "llama3", prompt = prompt_template)
+            print(f"Groq classification for group {idx + 1}: {category['response'].strip().lower()}")
+
+            # Categorize the group based on the response
+            if "introduction" in category:
+                introduction += group_text + "\n"
+            elif "methods" in category:
+                methods += group_text + "\n"
+            elif "results" in category:
+                results += group_text + "\n"
+            elif "discussion" in category:
+                discussion += group_text + "\n"
+            elif "conclusion" in category:
+                conclusion += group_text + "\n"
+            elif "references" in category:
+                references += group_text + "\n"
+            
+        self.categories["introduction"] = introduction 
+        self.categories["methods"] = methods 
+        self.categories["results"] = results
+        self.categories["discussion"] = discussion 
+        self.categories["conclusion"] = conclusion
+        self.categories["references"] = references 
     
-        abstract = '\n'.join(sections[:15])
-        introduction = self._category_sections.get('introduction') or ''
-        conclusion = self._category_sections.get('conclusion') or ''
-        discussion2 = self._category_sections.get('discussion') or ''
-        references = self._category_sections.get('references') or ''
-
-        if len(discussion2.strip()) == 0:
-            discussion2 = conclusion
-        
-        if len(introduction.strip()) == 0:
-            introduction = self._category_sections.get('background') or ''
-        if isinstance(sections, str):
-            sections = sections.split('\n\n\n')
-
-        # Extract title and author
-        title1 = '\n'.join(sections[:5])
-        author = '\n'.join(sections[0:4])
-        
-        summary = "\n\n\n".join([abstract, introduction, conclusion])
-        background_significance = introduction + '\n\n\n'
-        
-        title1 = '\n'.join(title1) if isinstance(title1, list) else title1
-        author = '\n'.join(author) if isinstance(author, list) else author
-        summary = '\n'.join(summary) if isinstance(summary, list) else summary
-        background_significance = '\n'.join(background_significance) if isinstance(background_significance, list) else background_significance
-        methods = '\n'.join(methods_text) if isinstance(methods_text, list) else methods_text
-        results = '\n'.join(results_text) if isinstance(results_text, list) else results_text
-        discussion = '\n'.join(discussion2) if isinstance(discussion2, list) else discussion2
-        references = '\n'.join(references) if isinstance(references, list) else references
-        
-        paper_sections = {'title': title1, 'authors': author, 'summary': summary,
-                      'background_significance': background_significance, 'methods': methods,
-                      'results': results, 'discussion': discussion, 'references': references}
-        print("Paper Sections Below: ")
-        print(paper_sections)
-
-        return paper_sections
-                    
-    def _get_paper_summary(self, feedback=""):
-        paper_summary = "## This is the summary of " + self._paper_sections['title'] + " paper \n\n"
-        title_prompt = f"Context: {self._paper_sections['title']}" + self.get_title_prompt()
-        author_prompt = f"Context: {self._paper_sections['authors']}" + self.get_author_prompt()
-        summary_prompt = f"Context:{self._paper_sections['summary']}" + self.get_summary_prompt()
-        background_significance_prompt = f"Context:{self._paper_sections['background_significance']}" + self.get_background_significance_prompt()
-        methods_prompt = f"Context:{self._paper_sections['methods']}" + self.get_methods_prompt()
-        results_prompt = f"Context:{self._paper_sections['results']}" + self.get_results_prompt()
-        discussion_prompt = f"Context:{self._paper_sections['discussion']}" + self.get_discussion_prompt()
-        references_prompt = f"Context:{self._paper_sections['references']}" + self.get_references_prompt()
-
-        title_response['response'] = ollama.generate(model = "llama3", prompt = title_prompt)
-        author_response['response'] = ollama.generate(model = "llama3", prompt = author_prompt)
-        summary_response['response'] = ollama.generate(model = "llama3", prompt = summary_prompt)
-        background_significance_response['response'] = ollama.generate(model = "llama3", prompt = background_significance_prompt)
-        methods_response['response'] = ollama.generate(model = "llama3", prompt = methods_prompt)
-        results_response['response'] = ollama.generate(model = "llama3", prompt = results_prompt)
-        discussion_response['response'] = ollama.generate(model = "llama3", prompt = discussion_prompt)
-        references_response['response'] = ollama.generate(model = "llama3", prompt = references_prompt)
-
-        paper_summary = "## This is the summary of " + self._paper_sections['title'] + " paper \n\n" + "\n\n\n" + title_response + "\n\n\n" + author_response + "\n\n\n" + summary_response + "\n\n\n" + background_significance_response + "\n\n\n" + methods_response + "\n\n\n" + results_response + "\n\n\n" + discussion_response + "\n\n\n" + references_response 
-        print("Paper Summary Below: ")
-        print(paper_summary)
-        return paper_summary #want to assign it to a file or just return it?
+    def group_lines(self):
+        return {
+            'summary': "\n\n\n".join([self.categories["abstract"], self.categories["introduction"], self.categories["conclusion"]]),
+            'background_significance': self.categories["introduction"] + '\n\n\n',
+            'methods': self.categories["methods"] + '\n\n\n', 
+            'results': self.categories["results"],
+            'discussion': self.categories["discussion"],
+            'references': self.categories["references"],
+        }
     
+    def summarize_sections(self, organized_sections): 
+        title_prompt = f"Context:{self.categories['title']}" + self.get_title_prompt() 
+        author_prompt = f"Context{self.categories['authors']}" + self.get_author_prompt()
+        summary_prompt = f"Context:{organized_sections.get('summary')}" + self.get_summary_prompt()
+        background_significance_prompt = f"Context:{organized_sections.get('background_significance')}" + self.get_background_significance_prompt()
+        methods_prompt = f"Context:{organized_sections.get('methods')}" + self.get_methods_prompt()
+        results_prompt = f"Context:{organized_sections.get('results')}" + self.get_results_prompt()
+        discussion_prompt = f"Context:{organized_sections.get('discussion')}" + self.get_discussion_prompt()
+        references_prompt = f"Context:{organized_sections.get('references')}" + self.get_references_prompt()
+
+        """category = ollama.generate(model = "llama3", prompt = prompt_template)
+            print(f"Groq classification for group {idx + 1}: {category['response'].strip().lower()}")
+        """
+        
+        title_response = ollama.generate(model = "llama3", prompt = title_prompt)
+        author_response = ollama.generate(model = "llama3", prompt = author_prompt)
+        summary_response = ollama.generate(model = "llama3", prompt = summary_prompt)
+        background_significance_response = ollama.generate(model = "llama3", prompt = background_significance_prompt)
+        methods_response = ollama.generate(model = "llama3", prompt = methods_prompt)
+        results_response = ollama.generate(model = "llama3", prompt = results_prompt)
+        discussion_response = ollama.generate(model = "llama3", prompt = discussion_prompt)
+        references_response = ollama.generate(model = "llama3", prompt = references_prompt)
+        
+        paper_summary = (title_response['response'] + '\n\n\n' + 
+                            author_response['response'] + '\n\n\n' + 
+                            summary_response['response'] + '\n\n\n' + 
+                            background_significance_response['response'] + '\n\n\n' + 
+                            methods_response['response'] + '\n\n\n' + 
+                            results_response['response'] + '\n\n\n' + 
+                            discussion_response['response'] + '\n\n\n' + 
+                            references_response['response'])
+        
+        return paper_summary
+
     def get_title_prompt(self):
         return "Set the title for the section as '#Title' Directly state the title of the paper. Disregard all other text."
     def get_author_prompt(self):
